@@ -1,0 +1,289 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/**
+ * The navy identity. `--color-primary-500` is the brand navy; 50–400 are the
+ * light steps this palette used to lack, which is why the old UI kept borrowing
+ * Tailwind's `blue-*` for text on dark surfaces. Everything reads from here.
+ */
+@theme static {
+  --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /**
+   * The one horizontal gutter of the phone shell. Every full-width section and
+   * every card rail reads from it, so the hero, the headings, and the carousels
+   * all line up on the same edge — `px-gutter`, `mx-gutter`, `scroll-px-gutter`.
+   */
+  --spacing-gutter: 1.25rem;
+
+  /**
+   * The type ramp, lifted one notch above Tailwind's default. The old scale
+   * bottomed out at 12px, which is under the comfortable reading floor for a
+   * text-heavy surface held at arm's length. Overriding the ramp — rather than
+   * the root font size — grows the type without also inflating every rem-based
+   * padding, gap, and size utility in the app.
+   */
+  --text-xs: 0.8125rem; /* 13px */
+  --text-xs--line-height: calc(1.125 / 0.8125);
+  --text-sm: 0.9375rem; /* 15px */
+  --text-sm--line-height: calc(1.375 / 0.9375);
+  --text-base: 1.0625rem; /* 17px */
+  --text-base--line-height: calc(1.625 / 1.0625);
+  --text-lg: 1.1875rem; /* 19px */
+  --text-lg--line-height: calc(1.75 / 1.1875);
+  --text-xl: 1.3125rem; /* 21px */
+  --text-xl--line-height: calc(1.875 / 1.3125);
+  --text-2xl: 1.5625rem; /* 25px */
+  --text-2xl--line-height: calc(2.125 / 1.5625);
+  --text-3xl: 1.9375rem; /* 31px */
+  --text-3xl--line-height: calc(2.375 / 1.9375);
+
+  --color-primary-50: #f4f7fa;
+  --color-primary-100: #e3ecf4;
+  --color-primary-200: #c4d8e9;
+  --color-primary-300: #9bbad4;
+  --color-primary-400: #5b87b0;
+  --color-primary-500: #1e3a5f;
+  --color-primary-600: #1a3253;
+  --color-primary-700: #152a45;
+  --color-primary-800: #112137;
+  --color-primary-900: #0d1929;
+  --color-primary-950: #08101b;
+
+  --color-primary: var(--color-primary-500);
+}
+
+@layer base {
+  /**
+   * Surfaces the browser owns but the design still has to answer for:
+   * selection, caret, scrollbar, focus ring, and link underline offset.
+   */
+  ::selection {
+    background-color: var(--color-primary-200);
+    color: var(--color-primary-900);
+  }
+
+  html {
+    scrollbar-color: var(--color-primary-200) transparent;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    caret-color: var(--color-primary-500);
+    text-underline-offset: 0.2em;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+    background-color: var(--color-primary-200);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-primary-300);
+  }
+
+  /* Figures that stack in a column have to align digit-for-digit. */
+  :where(th, td, time, [data-numeric]) {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+}
+
+@utility numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Home-indicator clearance for the fixed bottom bars. Tailwind ships no safe-area utility. */
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/**
+ * Bottom-bar clearance: a real padding floor *plus* the home indicator, not the
+ * inset alone. A device without an indicator reports `0px`, which left the CTA
+ * buttons sitting on the screen edge.
+ */
+@utility pb-bar {
+  padding-bottom: calc(var(--spacing) * 4 + env(safe-area-inset-bottom, 0px));
+}
+
+@utility bottom-safe {
+  bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Horizontal rails hide their scrollbar; the snap points carry the affordance. */
+@utility hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/**
+ * A horizontal card rail. Padding alone is not enough to keep cards off the
+ * screen edge: a snapped card aligns to the *scrollport*, so it slides flush
+ * against the edge the moment the rail is scrolled. `scroll-padding-inline`
+ * moves that resting point in to match the gutter, so the inset holds at every
+ * scroll position. The block padding is clearance for the cards' hover shadow
+ * and focus ring, which the clipping scroll container would otherwise cut off.
+ */
+@utility rail {
+  display: flex;
+  gap: calc(var(--spacing) * 3);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  padding-inline: var(--spacing-gutter);
+  scroll-padding-inline: var(--spacing-gutter);
+  padding-block: calc(var(--spacing) * 2);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/**
+ * Rendered Markdown from the admin editor. There is no typography plugin here,
+ * so the tags `renderMarkdown` allows through are styled explicitly — the
+ * allow-list and this block are the same short list, on purpose.
+ */
+@utility markdown {
+  color: var(--ui-text-toned);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+
+  & > * + * {
+    margin-top: 0.9em;
+  }
+
+  & h1,
+  & h2,
+  & h3,
+  & h4 {
+    color: var(--ui-text-highlighted);
+    font-weight: 700;
+    line-height: 1.3;
+    margin-top: 1.6em;
+  }
+  & h1 {
+    font-size: var(--text-lg);
+  }
+  & h2 {
+    font-size: var(--text-base);
+  }
+  & h3,
+  & h4 {
+    font-size: var(--text-sm);
+  }
+
+  & strong {
+    color: var(--ui-text-highlighted);
+    font-weight: 600;
+  }
+
+  & a {
+    color: var(--ui-primary);
+    font-weight: 500;
+    text-decoration: underline;
+  }
+
+  & ul,
+  & ol {
+    padding-inline-start: 1.35em;
+  }
+  & ul {
+    list-style: disc;
+  }
+  & ol {
+    list-style: decimal;
+  }
+  & li + li {
+    margin-top: 0.35em;
+  }
+  & li::marker {
+    color: var(--ui-text-dimmed);
+  }
+
+  & blockquote {
+    border-inline-start: 3px solid var(--ui-border-accented);
+    padding-inline-start: 1em;
+    color: var(--ui-text-muted);
+    font-style: italic;
+  }
+
+  & code {
+    background-color: var(--ui-bg-elevated);
+    border-radius: 0.35em;
+    padding: 0.15em 0.4em;
+    font-size: 0.9em;
+  }
+  & pre {
+    background-color: var(--ui-bg-elevated);
+    border-radius: 0.75rem;
+    padding: 0.9rem 1rem;
+    overflow-x: auto;
+  }
+  & pre code {
+    background: none;
+    padding: 0;
+  }
+
+  & hr {
+    border-color: var(--ui-border);
+  }
+
+  & img {
+    border-radius: 0.75rem;
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/**
+ * The one authored motion in the app: content settles in on route change.
+ * Exponential ease-out, and it starts from an already-legible position so a
+ * dropped animation never hides content.
+ */
+@layer utilities {
+  .page-enter-active,
+  .page-leave-active {
+    transition:
+      opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .page-enter-from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  .page-leave-to {
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .page-enter-active,
+    .page-leave-active {
+      transition: none;
+    }
+    .page-enter-from,
+    .page-leave-to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}

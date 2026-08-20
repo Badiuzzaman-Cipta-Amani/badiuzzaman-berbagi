@@ -1,0 +1,300 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../prisma/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum CampaignCategory {
+  borehole
+  islamic_boarding_school
+  orphan
+  social
+  mosque
+  education
+}
+
+enum CampaignStatus {
+  draft
+  active
+  completed
+  cancelled
+}
+
+enum DonationStatus {
+  pending
+  verified
+  rejected
+}
+
+model CampaignAttachment {
+  id         BigInt @id @default(autoincrement())
+  campaignId BigInt @map("campaign_id")
+
+  name   String
+  path   String
+  mime   String
+  size   Int
+  width  Int?
+  height Int?
+  alt    String?
+
+  sortOrder Int? @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, sortOrder])
+  @@map("campaign_attachments")
+}
+
+model UserAttachment {
+  id     BigInt  @id @default(autoincrement())
+  userId BigInt? @map("user_id")
+
+  name   String
+  path   String
+  mime   String
+  size   Int
+  width  Int?
+  height Int?
+  alt    String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_attachments")
+}
+
+model FundraiserAttachment {
+  id           BigInt @id @default(autoincrement())
+  fundraiserId BigInt @map("fundraiser_id")
+
+  name   String
+  path   String
+  mime   String
+  size   Int
+  width  Int?
+  height Int?
+  alt    String?
+
+  sortOrder Int @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  fundraiser Fundraiser @relation(fields: [fundraiserId], references: [id], onDelete: Cascade)
+
+  @@index([fundraiserId])
+  @@index([fundraiserId, sortOrder])
+  @@map("fundraiser_attachments")
+}
+
+model Campaign {
+  id           BigInt           @id @default(autoincrement())
+  title        String           @db.VarChar(100)
+  slug         String           @unique
+  category     CampaignCategory
+  excerpt      String
+  description  String           @db.Text
+  location     String?
+  mapsUrl      String?          @map("maps_url")
+  targetAmount BigInt           @map("target_amount")
+  raisedAmount BigInt           @default(0) @map("raised_amount")
+  status       CampaignStatus   @default(draft)
+  verifiedAt   DateTime?        @map("verified_at") @db.Timestamptz()
+  endAt        DateTime?        @map("end_at") @db.Timestamptz()
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  fundraiserId BigInt?     @map("fundraiser_id")
+  fundraiser   Fundraiser? @relation(fields: [fundraiserId], references: [id])
+
+  updates             CampaignUpdate[]
+  donations           Donation[]
+  campaignAttachments CampaignAttachment[]
+
+  @@index([category])
+  @@index([status])
+  @@index([fundraiserId])
+  @@index([endAt])
+  @@map("campaigns")
+}
+
+model CampaignUpdate {
+  id          BigInt   @id @default(autoincrement())
+  campaignId  BigInt   @map("campaign_id")
+  title       String
+  description String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("campaign_updates")
+}
+
+model Donation {
+  id         BigInt         @id @default(autoincrement())
+  userId     BigInt?        @map("user_id")
+  campaignId BigInt         @map("campaign_id")
+  amount     BigInt
+  message    String?
+  status     DonationStatus @default(pending)
+
+  /// Every name this donation was given in — a donation can be offered on
+  /// behalf of a family or a patungan, and each entry is printed on the
+  /// donation certificate. This is the source of truth for who gave.
+  donorNames String[] @map("donor_names")
+
+  /// The roster joined into one string, kept denormalised because Postgres
+  /// arrays answer `has` but not a case-insensitive `contains` — the public
+  /// dua feed and the admin donor search both read this, never `donorNames`.
+  donorName String? @map("donor_name")
+  verifiedAt DateTime?      @map("verified_at") @db.Timestamptz()
+
+  /// The code a donor quotes to look their donation up without an account.
+  /// `cuid()` is only the database-level fallback — the app writes a short,
+  /// readable code (`BZ-XXXXXX`) that a person can dictate over WhatsApp.
+  reference String @unique @default(cuid())
+
+  /// What the donor sent back as proof of transfer, and when. A confirmed
+  /// donation is still `pending` — only an admin moves it to `verified`.
+  proofUrl    String?   @map("proof_url")
+  proofNote   String?   @map("proof_note")
+  confirmedAt DateTime? @map("confirmed_at") @db.Timestamptz()
+
+  /// Who moved this donation out of `pending`, and why it was rejected.
+  verifiedById BigInt? @map("verified_by_id")
+  reviewNote   String? @map("review_note")
+
+  /// Hides the donor's message from the public dua feed without touching the money.
+  isDuaHidden Boolean @default(false) @map("is_dua_hidden")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  verifiedBy Admin? @relation("DonationVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([campaignId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([verifiedById])
+  @@map("donations")
+}
+
+/// A single-use password reset grant. Only the hash of the token is stored, so
+/// a leaked table cannot be replayed against the reset endpoint.
+model PasswordReset {
+  id     BigInt @id @default(autoincrement())
+  userId BigInt @map("user_id")
+
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz()
+  usedAt    DateTime? @map("used_at") @db.Timestamptz()
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_resets")
+}
+
+model Fundraiser {
+  id BigInt @id @default(autoincrement())
+
+  name String
+  /// Who the organization is, shown on the public campaign detail page.
+  description String? @db.Text
+  googleMaps  String? @map("google_maps")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  campaigns             Campaign[]
+  fundraiserAttachments FundraiserAttachment[]
+
+  @@map("fundraisers")
+}
+
+model User {
+  id        BigInt   @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  phone     String?
+  password  String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  donations       Donation[]
+  userAttachments UserAttachment[]
+  passwordResets  PasswordReset[]
+
+  @@map("users")
+}
+
+model Admin {
+  id       BigInt @id @default(autoincrement())
+  name     String
+  /// Login identifier. `password` stores a bcrypt hash, never a plaintext secret.
+  email    String @unique
+  password String
+  roleId   Int    @map("role_id")
+
+  /// Deactivated admins keep their audit trail but are refused at login.
+  isActive    Boolean   @default(true) @map("is_active")
+  lastLoginAt DateTime? @map("last_login_at") @db.Timestamptz()
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  role Role @relation(fields: [roleId], references: [id])
+
+  verifiedDonations Donation[] @relation("DonationVerifier")
+
+  @@index([roleId])
+  @@map("admins")
+}
+
+model Role {
+  id Int @id @default(autoincrement())
+
+  /// Machine key — lowercase and underscored. `super_admin` is reserved.
+  name String @unique
+  /// What an operator reads on screen. `name` is never shown raw in the UI.
+  label       String?
+  description String?
+
+  /// Permission keys from `shared/constants/permission.ts`. `super_admin`
+  /// ignores this list and holds every permission, so it can never lock itself
+  /// out of the screen that edits permissions.
+  permissions String[] @default([])
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  admins Admin[]
+
+  @@map("roles")
+}

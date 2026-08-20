@@ -1,0 +1,15 @@
+allowBuilds:
+  "@parcel/watcher": false
+  # Prisma's postinstall fetches the query engine binaries the client needs.
+  "@prisma/engines": true
+  "@tailwindcss/oxide": false
+  esbuild: false
+  # Pulled in by nuxt-charts → unovis. Nothing in this app renders a WebGL map,
+  # so its native build step is dead weight.
+  maplibre-gl: false
+  prisma: true
+  unrs-resolver: false
+  vue-demi: false
+minimumReleaseAgeExclude:
+  - "@nuxtjs/sitemap@8.3.2"
+  - sitemapd@0.2.0

@@ -1,0 +1,29 @@
+import { PrismaPg } from "@prisma/adapter-pg"
+import { pagination } from "prisma-extension-pagination"
+
+import { PrismaClient } from "../../prisma/generated/client"
+
+const prismaClientSingleton = () => {
+  const pool = new PrismaPg({ connectionString: process.env.NUXT_DATABASE_URL! })
+  return new PrismaClient({ adapter: pool }).$extends(
+    pagination({
+      pages: {
+        limit: 15, // set default limit to 10
+        includePageCount: true,
+      },
+      cursor: {
+        limit: 15, // set default limit to 10
+      },
+    }),
+  )
+}
+
+type PrismaClientSingleton = ReturnType<typeof prismaClientSingleton>
+
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClientSingleton | undefined
+}
+
+export const prisma = globalForPrisma.prisma ?? prismaClientSingleton()
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
